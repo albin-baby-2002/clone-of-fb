@@ -1,0 +1,523 @@
+/*
+! css reset ...................................
+*/
+
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;90&family=Open+Sans&display=swap');
+
+
+*, *::before, *::after {
+    box-sizing: border-box;
+  }
+ 
+  * {
+    margin: 0;
+    font-family: 'Open Sans', sans-serif;
+  }
+ 
+  body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    background-color: hsl(216, 20%, 95%);
+  }
+
+  img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  input, button, textarea, select {
+    font: inherit;
+  }
+
+  p, h1, h2, h3, h4, h5, h6 {
+    overflow-wrap: break-word;
+  }
+
+  #root, #__next {
+    isolation: isolate;
+  }
+  
+/*
+! nav design ...................................
+*/
+
+.subNavEl{
+  padding: .2rem;
+}
+
+nav img{
+  height: 30px;
+  width: 30px;
+}
+
+nav{
+    display: flex;
+    background-color: hsl(0, 0%, 100%);
+    padding-left: .9rem;
+    padding-right: .9rem;
+    position: fixed;
+    width: 100vw;
+    z-index: 1;
+}
+
+.navEl{
+    display: flex;
+    flex-basis: 33.33%;
+    align-items: center;
+    margin-top: .1rem;
+    flex-shrink: 1;
+
+}
+
+.search{
+    display: flex;
+    align-items: center;
+    background-color: hsl(0, 0%, 93%);
+    padding: .3rem;
+    padding-left: .5rem;
+    margin-left: .4rem;
+    border-radius: 1.5rem;
+}
+
+.search input{
+
+    width:70%;
+    height: 30px;
+    background-color: hsl(216, 20%, 95%);
+    border: none;
+    font-size: 1rem;
+    color: rgba(47, 47, 47, 0.842);
+    padding: .3rem;
+}
+
+.search input:focus {
+  outline: none;
+  border: none;
+}
+
+.searchImg{
+  height: 10px;
+  width: 10px;
+}
+
+.facebook{
+    background-color: rgb(208, 52, 52);
+}
+
+
+
+
+nav p{
+  font-size: .5rem;
+}
+
+
+
+.navLeft{
+  justify-content: flex-start;
+}
+
+.navCenter{
+  /* justify-content: ; */
+  padding: 0 80px;
+  display: flex;
+  flex-basis: 33%;
+  
+
+}
+
+.navCenterEl{
+  width: 100%;
+  min-width:  90px;
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0rem;
+  
+}
+
+.active {
+  border-bottom: 4px solid rgb(25, 117, 188);
+}
+.navCenter .fa-users{
+  border: 2px solid rgb(71, 71, 71);
+  padding: 5px;
+  border-radius: 50%;
+}
+
+.navRight{
+  justify-content: flex-end;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+
+.navRight p{
+  font-size: .88rem;
+  font-weight: bold;
+}
+
+nav .menu{
+  width: 10px;
+  display: flex;
+  flex-wrap: wrap ;
+  align-content: center;
+  
+}
+
+nav .menuBg{
+  background-color:hsl(0, 0%, 93%) ;
+  padding: 12px;
+  padding-right: 15px;
+  border-radius: 50%;
+}
+
+
+
+
+
+.friends{
+  padding: .7rem;
+  background-color: hsl(0, 0%, 93%);
+  border-radius: 2rem;
+}
+
+.navRimg{
+  padding: .6rem;
+  background-color: hsl(0, 0%, 93%);
+  border-radius: 50%;
+}
+
+.navIcons{
+  height: 20px;
+  width: 20px;
+}
+
+.navRimgsp{
+    padding: none;
+}
+
+.navRimgsp img{
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+}
+
+
+
+/*
+! main area design ...................................
+*/
+
+main{
+  /* background-color: aqua; */
+  display: flex;
+  position: absolute;
+  justify-content: space-between;
+  top: 60px;
+  /* height: 100vh; */
+  /* width: 100%; */
+  
+}
+
+
+.leftMain{
+
+
+  height: 700px;
+  min-width: 22vw;
+  /* width: 320px; */
+  /* background-color: blue; */
+  flex-basis: 22%;
+  padding-top:1.2rem;
+  display: grid;
+  position: fixed;
+  overflow-y: scroll;
+  gap:2rem;
+
+}
+
+.text{
+  font-size: .9rem;
+  font-weight: 10;
+}
+  
+
+.centerMain{
+ 
+  /* height: 100vh; */
+  /* background-color: brown; */
+  /* flex-basis: 56%; */
+  padding-top: 1rem;
+  position: absolute;
+  left: 22vw;
+  width: 54vw;
+  /* width: 780px; */
+  display: flex;
+  flex-direction: column;
+  /* justify-content: center; */
+  align-items: center;
+}
+
+.rightMain{
+  position: fixed;
+  left: 78vw;
+  height: 100%;
+  /* background-color: aquamarine; */
+  flex-basis: 22%;
+  padding-top:2rem;
+  width: 20vw;
+  padding-right: 10px;
+  
+}
+
+
+
+
+
+
+
+
+
+.leftMainParts{
+  display: flex;
+  align-items: center;
+  gap:1rem;
+  padding: 0px 15px;
+}
+
+
+
+.leftMainParts img{
+  width: 35px;
+  height:35px;
+  
+}
+
+
+
+ .special img{
+  width: 38px;
+  height:38px;
+  border-radius: 50%;
+}
+
+
+
+
+
+
+.socialElement{
+  min-width: 550px;
+  display: grid;
+  background-color: #fff;
+  border-radius: 10px 10px ;
+  /* height: 150px; */
+  
+  
+}
+
+.storyOrReel{
+  background-color:#fff ;
+  display: flex;
+  justify-content: space-around;
+  height: 60px;
+  align-items: center;
+  border-radius: 10px 10px 0 0 ;
+  
+}
+
+.reelVideo{
+  background-color: #fff;
+  width: 100%;
+  
+  display: flex;
+  justify-content: space-around;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 10px 10px ;
+  
+}
+
+.story, .reels{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  height: 100%;
+  flex-basis: 50%;
+  justify-content: center;
+  margin: 20px 20px;
+  font-weight: bold;
+}
+
+.reels{
+  border-bottom: 4px solid rgb(9, 126, 236);
+  color: rgb(9, 126, 236);
+  
+}
+
+.video{
+  width: 100px;
+  height: 180px;
+  border-radius: 10px;
+}
+
+
+
+.postImg{
+  background-color: black;
+  width: 550px;
+  display: flex;
+  justify-content: center;
+}
+
+.post{
+  margin: 20px 0px;
+  padding: 2px 0;
+  background-color: #fff;
+  border-radius: 10px;
+}
+
+.postProfile{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 70px;
+}
+
+
+.postLeft{
+  display: flex;
+  padding-left: 10px;
+  gap: 5px;
+}
+
+.postRight{
+  padding-right: 20px;
+  display: flex;
+  align-items: center;
+  height: 50px;
+  justify-content: center;
+  gap:1rem
+}
+.post img{
+  max-width: 550px;
+  max-height: 500px;
+  
+}
+
+.profilePic img{
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+}
+
+.nameAndFollow {
+  font-size: .7rem;
+  font-weight: bold;
+}
+
+.nameAndFollow span{
+  font-weight: bold;
+  color: rgb(21, 21, 223);
+}
+
+.postTime{
+  font-size: .6rem;
+  letter-spacing: .2rem;
+}
+
+.caption{
+  padding-left: 10px;
+  font-size: .8rem;
+  padding-bottom: 10px;
+}
+
+.interactions{
+  display: flex;
+  justify-content: space-between;
+  font-size: .8rem;
+  padding: 10px 10px;
+  margin:10px;
+  border-bottom: 1px solid ;
+}
+
+.interactions .fa-thumbs-up{
+  background-color: rgb(57, 131, 234);
+  padding: 5px;
+  border-radius: 50%;
+  
+}
+
+.buttons{
+  display: flex;
+  margin: 10px;
+  font-size: .8rem;
+  
+}
+.likeButton ,.commentButton,.shareButton{
+  flex-basis: 33%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap:6px
+  
+}
+
+
+
+
+
+.sponsored{
+  font-size: 2rem;
+  font-weight: bolder;
+  color: rgb(164, 160, 160);
+  padding-bottom: 1rem;
+}
+
+
+.messages img{
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+}
+
+.contactName{
+  font-size: .9rem;
+  font-weight: bold;
+  color: rgb(101, 101, 101);
+}
+
+.contactAndElipse{
+  margin: 20px;
+  margin-left: 0;
+  font-size: 1.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  color: rgb(101, 101, 101);;
+}
+
+.contacts{
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: .6rem;
+}
+
+
+
+@media (max-width: 1200px){
+  .search input{
+    display: none;
+  }
+
+  .friends{
+    display: none;
+  }
+
+  .rightMain{
+    display: none;
+  }
+}

@@ -1,0 +1,797 @@
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.shutterstockPrivateanalyticsListener = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function (global){
+var createLogger = require('./logger.js');
+var createHandler = require('./handler.js');
+var createTracker = require('./tracker.js');
+var createBinder = require('./binder.js');
+var createValidator = require('./validator.js');
+var eventLib = require('gator');
+(function umd(root, factory) {
+    // Export factory for testing
+  module.exports = factory;
+    // Browser globals (root is window)
+    // Entire window object passed in since analytics is often loaded async
+  root.AnalyticsListener = factory(root); // eslint-disable-line no-param-reassign
+}(global, function createListener(root) {
+  var logger = createLogger(root);
+  var handler = createHandler(root);
+  var tracker = createTracker(root);
+  var binder = createBinder(root);
+  var validator = createValidator(root);
+
+  /**
+   * Validates all of the tracking data in the DOM.  Only run when debugAnalytics = true
+   * Can be run at any time by just running AnalyticsListener.validate()
+   */
+  var validate = function validate() {
+    var elements;
+    logger.log('validateTrackingData');
+
+    // Get array of elements to check (slice used to convert NodeList to Array)
+    elements = Array.prototype.slice.call(root.document.querySelectorAll('[data-track]'));
+    elements.forEach(function validateElem(elem) {
+      var dataStr = elem.getAttribute('data-track');
+      var parsed = handler.parseTrackAttribute(dataStr);
+
+      var messages = validator.buildValidateMessage(parsed, dataStr, elem);
+
+      if (messages.length) {
+        messages.unshift(elem);
+        messages.unshift('Issues found with the following element: ');
+        logger.error.apply({}, messages);
+      }
+    });
+  };
+  var listen = function listen(getCustomData) {
+    var getFirstData;
+
+    logger.log('listen');
+
+    if (root.debugAnalytics) {
+      validate();
+    }
+    // eslint-disable-next-line no-param-reassign
+    getFirstData = getCustomData || function noop() {
+      return {};
+    };
+
+    binder.attachDirectEventListeners(binder.directEventActionsSelector, 'mouseenter', handler.handleAction('hover', getFirstData, eventLib), eventLib);
+
+    binder.setUpListeners(eventLib, handler.handleAction, getFirstData);
+  };
+
+  return {
+    /**
+     * Initiate the listener
+     * @param {Function} eventLib - an event delegation library, such as jQuery.  If not jQuery, it must have an identical interface with a `.on` function
+     * @param {Function} getCustomData - a function that can be called to add custom data to the tracked data
+     */
+    listen: listen,
+
+    /**
+     * Validate whether the tracking data in the DOM is set up properly or not
+     */
+    validate: validate,
+
+    /**
+     * Fire a tracking call
+     */
+    track: tracker.sendTrack,
+
+    VERSION: "3.0.3"
+  };
+}));
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./binder.js":2,"./handler.js":3,"./logger.js":4,"./tracker.js":5,"./validator.js":6,"gator":7}],2:[function(require,module,exports){
+module.exports = function binder(root) {
+  var delegatedEventActions = ['click', 'submit', 'linkClick', 'change'];
+  var directEventActions = ['hover'];
+  var supportedEventActions = delegatedEventActions.concat(directEventActions);
+  var directEventActionsSelector = directEventActions.map(function createSelector(selector) {
+    return '[data-track^="' + selector + '"]';
+  }).join(',');
+
+  /* eslint-disable no-use-before-define */
+  return {
+    directEventActions: directEventActions,
+    supportedEventActions: supportedEventActions,
+    directEventActionsSelector: directEventActionsSelector,
+    attachDirectEventListeners: attachDirectEventListeners,
+    setUpListeners: setUpListeners
+  };
+
+  /* eslint-enable no-use-before-define */
+  /*
+   * adds styles which are used to fire an 'animationstart' event if new DOM nodes with selector [data-track^="hover"] are inserted
+   * see https://davidwalsh.name/detect-node-insertion
+   */
+  function applyHiddenCssAnimation(selector) {
+    var styleElement = root.document.createElement('style');
+    var cssCode = '@keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-moz-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-webkit-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-ms-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-o-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}' +
+      selector +
+      '{animation-duration:.01s;-o-animation-duration:.01s;-ms-animation-duration:.01s;-moz-animation-duration:.01s;-webkit-animation-duration:.01s;animation-name:nodeInserted;-o-animation-name:nodeInserted;-ms-animation-name:nodeInserted;-moz-animation-name:nodeInserted;-webkit-animation-name:nodeInserted};';
+    styleElement.type = 'text/css';
+    if (styleElement.styleSheet) {
+      styleElement.styleSheet.cssText = cssCode;
+    } else {
+      styleElement.appendChild(root.document.createTextNode(cssCode));
+    }
+    root.document.getElementsByTagName('head')[0].appendChild(styleElement);
+  }
+
+  /**
+   * Attach an event listner to DOM nodes with the given selector to:
+   * * all already mounted nodes directly
+   * * nodes which will be inserted in the future (detected by the animationstart event)
+   */
+  function attachDirectEventListeners(selector, eventName, listener, eventLib) {
+    function nodeInsertedHandler(event) {
+      var animationName = event.animationName || (event.originalEvent && event.originalEvent.animationName);
+      if (animationName === 'nodeInserted') {
+        eventLib(event.target)
+        // make sure listener gets detached to not track twice
+          .off(eventName, listener)
+          .on(eventName, listener);
+      }
+    }
+
+    eventLib(root.document).on(eventName, selector, listener);
+    // add the css which is needed for the animationstart event
+    applyHiddenCssAnimation(selector);
+    eventLib(root.document).on('animationstart', nodeInsertedHandler);
+    eventLib(root.document).on('MSAnimationStart', nodeInsertedHandler);
+    eventLib(root.document).on('webkitAnimationStart', nodeInsertedHandler);
+  }
+
+  function setUpListeners(eventLib, handleAction, getFirstData) {
+    delegatedEventActions.forEach(function setupListener(action) {
+      /* Listen for a specific action in the DOM */
+      var domEvent = (action === 'linkClick') ? 'click' : action;
+      /*
+       * TODO: use '[data-track*="' + action + '"]' to only attach event if data-track contains the action
+       * integration test #1 must be adjusted
+       */
+      // eslint-disable-next-line new-cap
+      eventLib(root.document).on(domEvent, '[data-track]', handleAction(action, getFirstData, eventLib));
+    });
+  }
+};
+
+},{}],3:[function(require,module,exports){
+var createLogger = require('./logger.js');
+var createTracker = require('./tracker.js');
+module.exports = function handler(root) {
+  var logger = createLogger(root);
+  var tracker = createTracker(root);
+
+  /* eslint-disable no-use-before-define */
+  return {
+    parseTrackAttribute: parseTrackAttribute,
+    assignProp: assignProp,
+    handleAction: handleAction
+  };
+  /* eslint-enable no-use-before-define */
+
+  /**
+   * Parses the eventValue part of the data-track attribute
+   * @param   {string} eventValue last part of the data-track attribute
+   * @returns {Object} Data parsed from the string
+   * @throws  {SyntaxError} for invalid JSON
+   */
+  function parseEventValue(eventValue) {
+    return JSON.parse(eventValue);
+  }
+
+  /**
+   * Parses data-track attribute to get tracking data
+   * @param   {String} attr data-track attribute
+   * @returns {Object|null} Tracking data or null if unable to parse
+   */
+  function parseTrackAttribute(attr) {
+    var parts = attr.trim().split('.');
+    var parsed;
+    var eventValue;
+    if (parts.length < 3 || attr.indexOf(' ') !== -1) {
+      return null;
+    }
+    parsed = {
+      eventAction: parts[0].split(','),
+      pageSection: parts[1],
+      eventLabel: parts[2]
+    };
+    // If there are more than 3 '.'-delimited parts, we treat the rest as eventValue
+    // Since eventValue could contain '.', we re-join those parts together
+    eventValue = parts.slice(3).join('.');
+    if (eventValue.length) {
+      try {
+        parsed.eventValue = parseEventValue(eventValue);
+      } catch (e) {
+        logger.error('Unable to parse eventValue as JSON: ' + e.toString());
+        parsed.eventValue = null;
+      }
+    }
+    return parsed;
+  }
+
+  function assignProp(obj, propName, value) {
+    if (typeof obj[propName] === 'string' && root.debugAnalytics) {
+      logger.error('`getFirstData` function assigned data to reserved property: ' + propName + '. This data will be overwritten.');
+    }
+
+    // eslint-disable-next-line no-param-reassign
+    obj[propName] = value;
+  }
+
+  // Helper
+  function getSelectedOptionsFromMultipleSelect(selectTarget) {
+    if (selectTarget.selectedOptions) {
+      return [].slice.call(selectTarget.selectedOptions);
+    }
+    return [].slice.call(selectTarget.options).filter(function filterSelectedItems(item) {
+      return item.selected;
+    });
+  }
+
+  function handleChange(target, dataStr, dataObj) {
+    if (target.type === 'select-multiple') {
+      assignProp(dataObj.eventValue, 'formElementValue', getSelectedOptionsFromMultipleSelect(target).map(function pushValuesToArray(item) {
+        return item.value;
+      }));
+    } else if (target.type === 'checkbox') {
+      assignProp(dataObj.eventValue, 'formElementValue', [].slice.call(root.document.getElementsByName(target.name)).filter(function getCheckedCheckboxes(item) {
+        return item.checked;
+      }).map(function getCheckboxValues(item) {
+        return item.value;
+      }));
+    } else if (target.value !== undefined) {
+      assignProp(dataObj.eventValue, 'formElementValue', target.value);
+    }
+    tracker.sendTrack(dataStr, dataObj);
+  }
+
+  function handleHover(target, dataStr, dataObj, eventLib) {
+    var startTime = new Date().getTime();
+    var listener = function mouseleave() {
+      var hoverTime = new Date().getTime() - startTime;
+      // track only if a minimum hover time is exceeded
+      if (hoverTime > (dataObj.eventValue.hoverTimeThreshold || 1500)) {
+        assignProp(dataObj.eventValue, 'hoverTime', hoverTime);
+        tracker.sendTrack(dataStr, dataObj);
+      }
+      eventLib(target).off('mouseleave', listener);
+    };
+    eventLib(target).on('mouseleave', listener);
+  }
+
+  function handleOtherAction(dataStr, dataObj) {
+    tracker.sendTrack(dataStr, dataObj);
+  }
+
+  function handleLinkClick(target, dataStr, dataObj) {
+    tracker.link(target, dataStr, dataObj);
+  }
+
+  /**
+   * creates an event handler for a specific action
+   */
+  function handleAction(action, getFirstData, eventLib) {
+    return function actionHandler(event) {
+      var dataStr = this.getAttribute('data-track');
+      var target = event.target;
+      var dataObj;
+      var parsed = parseTrackAttribute(dataStr);
+
+      if (parsed && parsed.eventAction.indexOf(action) > -1) {
+        dataObj = getFirstData(this, event, dataStr);
+
+        assignProp(dataObj, 'eventAction', action);
+        assignProp(dataObj, 'pageSection', parsed.pageSection);
+        assignProp(dataObj, 'eventLabel', parsed.eventLabel);
+        assignProp(dataObj, 'url', root.document.URL);
+        assignProp(dataObj, 'eventCategory', 'userInteraction');
+        assignProp(dataObj, 'name', target.name !== undefined && target.name !== '' ? target.name : target.textContent);
+
+        if (typeof parsed.eventValue !== 'undefined' && parsed.eventValue !== null) {
+          assignProp(dataObj, 'eventValue', parsed.eventValue);
+        } else {
+          assignProp(dataObj, 'eventValue', {});
+        }
+
+        try {
+          if (action === 'linkClick') {
+            handleLinkClick(target, dataStr, dataObj);
+          } else if (action === 'hover') {
+            handleHover(target, dataStr, dataObj, eventLib);
+          } else if (action === 'change') {
+            handleChange(target, dataStr, dataObj);
+          } else {
+            handleOtherAction(dataStr, dataObj);
+          }
+        } catch (err) {
+          logger.error(err);
+        }
+      }
+    };
+  }
+};
+
+},{"./logger.js":4,"./tracker.js":5}],4:[function(require,module,exports){
+module.exports = function logger(root) {
+  /* eslint-disable no-use-before-define */
+  return {
+    log: log,
+    error: error
+  };
+  /* eslint-enable no-use-before-define */
+
+  function log() {
+    if (root.debugAnalytics) {
+      // eslint-disable-next-line no-console
+      root.console.log.apply(root.console, arguments);
+    }
+  }
+
+  function error() {
+    if (root.debugAnalytics) {
+      // eslint-disable-next-line no-console
+      root.console.error.apply(root.console, arguments);
+    }
+  }
+};
+
+},{}],5:[function(require,module,exports){
+var createLogger = require('./logger.js');
+module.exports = function track(root) {
+  var logger = createLogger(root);
+  /* eslint-disable no-use-before-define */
+  return {
+    link: trackLink,
+    sendTrack: sendTrack
+  };
+  /* eslint-enable no-use-before-define */
+
+  function trackLink(element, dataStr, dataObj) {
+    logger.log('Tracking Link: ', dataStr, dataObj);
+    // this is intentionally a pointer as analytics.js loads asynchronously
+    root.analytics.trackLink(element, dataStr, dataObj);
+  }
+
+  function sendTrack(dataStr, dataObj) {
+    var dataOpts;
+    if (dataObj.visit) {
+      if (dataObj.visit.visitorId) {
+        dataOpts = { Optimizely: { userId: dataObj.visit.visitorId } };
+      } else {
+        logger.error('No visitor ID present in analytics data', dataObj);
+      }
+    } else {
+      logger.error('Analytics data missing required object \'visit\'!', dataStr, dataObj);
+    }
+
+    logger.log('Tracking: ', dataStr, dataObj, dataOpts);
+    // this is intentionally a pointer as analytics.js loads asynchronously
+    root.analytics.track(dataStr, dataObj, dataOpts);
+  }
+};
+
+},{"./logger.js":4}],6:[function(require,module,exports){
+var createBinder = require('./binder.js');
+module.exports = function validator(root) {
+  var binder = createBinder(root);
+
+  /* eslint-disable no-use-before-define */
+  return {
+    buildValidateMessage: buildValidateMessage
+  };
+  /* eslint-enable no-use-before-define */
+
+  function buildValidateMessage(parsed, dataStr, elem) {
+    var messages = [];
+
+    if (!parsed) {
+      if (dataStr.trim().indexOf(' ') > -1) {
+        messages.push('\n- Cannot track element because its data-track string contains spaces');
+      } else {
+        messages.push('\n- Cannot track element because data-track attribute does not match form of <eventAction>.<pageSection>.<eventLabel>[.<eventValue JSON>]');
+      }
+    } else {
+      parsed.eventAction.forEach(function supportedAction(action, index) {
+        if (binder.supportedEventActions.indexOf(action) === -1) {
+          messages.push('\n- Cannot track element because its eventAction `' + action + '` is not one of supported types: [' + binder.supportedEventActions + ']');
+        } else if (index > 0 && binder.directEventActions.indexOf(action) > -1) {
+          messages.push('\n- Cannot track element because its eventAction `' + action + '` must at the beginning of the attribute string');
+        }
+      });
+      if (parsed.eventValue === null) {
+        messages.push('\n- Cannot parse eventValue as JSON from <eventAction>.<pageSection>.<eventLabel>.<eventValue JSON> See error output above.');
+      }
+
+      if ((parsed.eventAction.indexOf('submit') === -1) && elem.children.length > 0) {
+        messages.push('\n- Element has children, which could lead to unexpected text recorded in the `name` field.  Confirm that the behavior is as expected.');
+      }
+
+      if ((parsed.eventAction.indexOf('submit') > -1) && !elem.name) {
+        messages.push('\n- Form has no name attribute, which leads to nothing recorded in the `name` field.  Confirm that the behavior is as expected.');
+      }
+    }
+
+    if (messages.length) {
+      messages.unshift(elem);
+      messages.unshift('Issues found with the following element: ');
+    }
+
+    return messages;
+  }
+};
+
+},{"./binder.js":2}],7:[function(require,module,exports){
+/**
+ * Copyright 2014 Craig Campbell
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * GATOR.JS
+ * Simple Event Delegation
+ *
+ * @version 1.2.4
+ *
+ * Compatible with IE 9+, FF 3.6+, Safari 5+, Chrome
+ *
+ * Include legacy.js for compatibility with older browsers
+ *
+ *             .-._   _ _ _ _ _ _ _ _
+ *  .-''-.__.-'00  '-' ' ' ' ' ' ' ' '-.
+ * '.___ '    .   .--_'-' '-' '-' _'-' '._
+ *  V: V 'vv-'   '_   '.       .'  _..' '.'.
+ *    '=.____.=_.--'   :_.__.__:_   '.   : :
+ *            (((____.-'        '-.  /   : :
+ *                              (((-'\ .' /
+ *                            _____..'  .'
+ *                           '-._____.-'
+ */
+(function() {
+    var _matcher,
+        _level = 0,
+        _id = 0,
+        _handlers = {},
+        _gatorInstances = {};
+
+    function _addEvent(gator, type, callback) {
+
+        // blur and focus do not bubble up but if you use event capturing
+        // then you will get them
+        var useCapture = type == 'blur' || type == 'focus';
+        gator.element.addEventListener(type, callback, useCapture);
+    }
+
+    function _cancel(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    /**
+     * returns function to use for determining if an element
+     * matches a query selector
+     *
+     * @returns {Function}
+     */
+    function _getMatcher(element) {
+        if (_matcher) {
+            return _matcher;
+        }
+
+        if (element.matches) {
+            _matcher = element.matches;
+            return _matcher;
+        }
+
+        if (element.webkitMatchesSelector) {
+            _matcher = element.webkitMatchesSelector;
+            return _matcher;
+        }
+
+        if (element.mozMatchesSelector) {
+            _matcher = element.mozMatchesSelector;
+            return _matcher;
+        }
+
+        if (element.msMatchesSelector) {
+            _matcher = element.msMatchesSelector;
+            return _matcher;
+        }
+
+        if (element.oMatchesSelector) {
+            _matcher = element.oMatchesSelector;
+            return _matcher;
+        }
+
+        // if it doesn't match a native browser method
+        // fall back to the gator function
+        _matcher = Gator.matchesSelector;
+        return _matcher;
+    }
+
+    /**
+     * determines if the specified element matches a given selector
+     *
+     * @param {Node} element - the element to compare against the selector
+     * @param {string} selector
+     * @param {Node} boundElement - the element the listener was attached to
+     * @returns {void|Node}
+     */
+    function _matchesSelector(element, selector, boundElement) {
+
+        // no selector means this event was bound directly to this element
+        if (selector == '_root') {
+            return boundElement;
+        }
+
+        // if we have moved up to the element you bound the event to
+        // then we have come too far
+        if (element === boundElement) {
+            return;
+        }
+
+        // if this is a match then we are done!
+        if (_getMatcher(element).call(element, selector)) {
+            return element;
+        }
+
+        // if this element did not match but has a parent we should try
+        // going up the tree to see if any of the parent elements match
+        // for example if you are looking for a click on an <a> tag but there
+        // is a <span> inside of the a tag that it is the target,
+        // it should still work
+        if (element.parentNode) {
+            _level++;
+            return _matchesSelector(element.parentNode, selector, boundElement);
+        }
+    }
+
+    function _addHandler(gator, event, selector, callback) {
+        if (!_handlers[gator.id]) {
+            _handlers[gator.id] = {};
+        }
+
+        if (!_handlers[gator.id][event]) {
+            _handlers[gator.id][event] = {};
+        }
+
+        if (!_handlers[gator.id][event][selector]) {
+            _handlers[gator.id][event][selector] = [];
+        }
+
+        _handlers[gator.id][event][selector].push(callback);
+    }
+
+    function _removeHandler(gator, event, selector, callback) {
+
+        // if there are no events tied to this element at all
+        // then don't do anything
+        if (!_handlers[gator.id]) {
+            return;
+        }
+
+        // if there is no event type specified then remove all events
+        // example: Gator(element).off()
+        if (!event) {
+            for (var type in _handlers[gator.id]) {
+                if (_handlers[gator.id].hasOwnProperty(type)) {
+                    _handlers[gator.id][type] = {};
+                }
+            }
+            return;
+        }
+
+        // if no callback or selector is specified remove all events of this type
+        // example: Gator(element).off('click')
+        if (!callback && !selector) {
+            _handlers[gator.id][event] = {};
+            return;
+        }
+
+        // if a selector is specified but no callback remove all events
+        // for this selector
+        // example: Gator(element).off('click', '.sub-element')
+        if (!callback) {
+            delete _handlers[gator.id][event][selector];
+            return;
+        }
+
+        // if we have specified an event type, selector, and callback then we
+        // need to make sure there are callbacks tied to this selector to
+        // begin with.  if there aren't then we can stop here
+        if (!_handlers[gator.id][event][selector]) {
+            return;
+        }
+
+        // if there are then loop through all the callbacks and if we find
+        // one that matches remove it from the array
+        for (var i = 0; i < _handlers[gator.id][event][selector].length; i++) {
+            if (_handlers[gator.id][event][selector][i] === callback) {
+                _handlers[gator.id][event][selector].splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    function _handleEvent(id, e, type) {
+        if (!_handlers[id][type]) {
+            return;
+        }
+
+        var target = e.target || e.srcElement,
+            selector,
+            match,
+            matches = {},
+            i = 0,
+            j = 0;
+
+        // find all events that match
+        _level = 0;
+        for (selector in _handlers[id][type]) {
+            if (_handlers[id][type].hasOwnProperty(selector)) {
+                match = _matchesSelector(target, selector, _gatorInstances[id].element);
+
+                if (match && Gator.matchesEvent(type, _gatorInstances[id].element, match, selector == '_root', e)) {
+                    _level++;
+                    _handlers[id][type][selector].match = match;
+                    matches[_level] = _handlers[id][type][selector];
+                }
+            }
+        }
+
+        // stopPropagation() fails to set cancelBubble to true in Webkit
+        // @see http://code.google.com/p/chromium/issues/detail?id=162270
+        e.stopPropagation = function() {
+            e.cancelBubble = true;
+        };
+
+        for (i = 0; i <= _level; i++) {
+            if (matches[i]) {
+                for (j = 0; j < matches[i].length; j++) {
+                    if (matches[i][j].call(matches[i].match, e) === false) {
+                        Gator.cancel(e);
+                        return;
+                    }
+
+                    if (e.cancelBubble) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * binds the specified events to the element
+     *
+     * @param {string|Array} events
+     * @param {string} selector
+     * @param {Function} callback
+     * @param {boolean=} remove
+     * @returns {Object}
+     */
+    function _bind(events, selector, callback, remove) {
+
+        // fail silently if you pass null or undefined as an alement
+        // in the Gator constructor
+        if (!this.element) {
+            return;
+        }
+
+        if (!(events instanceof Array)) {
+            events = [events];
+        }
+
+        if (!callback && typeof(selector) == 'function') {
+            callback = selector;
+            selector = '_root';
+        }
+
+        var id = this.id,
+            i;
+
+        function _getGlobalCallback(type) {
+            return function(e) {
+                _handleEvent(id, e, type);
+            };
+        }
+
+        for (i = 0; i < events.length; i++) {
+            if (remove) {
+                _removeHandler(this, events[i], selector, callback);
+                continue;
+            }
+
+            if (!_handlers[id] || !_handlers[id][events[i]]) {
+                Gator.addEvent(this, events[i], _getGlobalCallback(events[i]));
+            }
+
+            _addHandler(this, events[i], selector, callback);
+        }
+
+        return this;
+    }
+
+    /**
+     * Gator object constructor
+     *
+     * @param {Node} element
+     */
+    function Gator(element, id) {
+
+        // called as function
+        if (!(this instanceof Gator)) {
+            // only keep one Gator instance per node to make sure that
+            // we don't create a ton of new objects if you want to delegate
+            // multiple events from the same node
+            //
+            // for example: Gator(document).on(...
+            for (var key in _gatorInstances) {
+                if (_gatorInstances[key].element === element) {
+                    return _gatorInstances[key];
+                }
+            }
+
+            _id++;
+            _gatorInstances[_id] = new Gator(element, _id);
+
+            return _gatorInstances[_id];
+        }
+
+        this.element = element;
+        this.id = id;
+    }
+
+    /**
+     * adds an event
+     *
+     * @param {string|Array} events
+     * @param {string} selector
+     * @param {Function} callback
+     * @returns {Object}
+     */
+    Gator.prototype.on = function(events, selector, callback) {
+        return _bind.call(this, events, selector, callback);
+    };
+
+    /**
+     * removes an event
+     *
+     * @param {string|Array} events
+     * @param {string} selector
+     * @param {Function} callback
+     * @returns {Object}
+     */
+    Gator.prototype.off = function(events, selector, callback) {
+        return _bind.call(this, events, selector, callback, true);
+    };
+
+    Gator.matchesSelector = function() {};
+    Gator.cancel = _cancel;
+    Gator.addEvent = _addEvent;
+    Gator.matchesEvent = function() {
+        return true;
+    };
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = Gator;
+    }
+
+    window.Gator = Gator;
+}) ();
+
+},{}]},{},[1])(1)
+});

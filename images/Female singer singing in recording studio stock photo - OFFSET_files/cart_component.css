@@ -1,0 +1,226 @@
+.checkout_window{
+    background-color: #FFF;
+    min-height: 435px;
+    z-index: 1044;
+    position: fixed;
+    width: 970px;
+    margin: 120px 95px;
+    top:63px;
+    border-radius:4px;
+    font-family: 'open_sans_lightregular', sans-serif;
+    color:#333;
+}
+
+.checkout_window #checkout_title {
+    color: #fff;
+    position:absolute;
+    top:-48px;
+}
+
+.checkout_window #checkout_title h2{
+    text-transform: uppercase;
+    font-weight: normal;
+    font-family: 'open_sans_lightregular', sans-serif;
+    line-height: 1.2em;
+    font-size: 30px;
+}
+
+
+.checkout_window #checkout_close{
+    width: 13px;
+    height:13px;
+    position:absolute;
+    right:30px;
+    top:12px;
+    cursor: pointer;
+
+}
+
+.checkout_window #checkout_left , .checkout_window #checkout_right, .checkout_window #checkout_center{
+    float:left
+}
+
+.checkout_window #checkout_right, .checkout_window #checkout_center{
+    margin-top:34px;
+    height:235px;
+
+}
+
+.checkout_window #checkout_center .sizes_form{
+    border-top:solid 1px #dedede;
+    border-bottom:solid 1px #dedede;
+    padding:14px 0;
+}
+
+.checkout_window #checkout_center .sizes_form .form_input{
+    margin-bottom: 10px;
+}
+
+.checkout_window #checkout_center .sizes_form input{
+    margin: -4px 2px 0 0;
+}
+.checkout_window #checkout_center .sizes_form span{
+    font-size: 14px;
+}
+
+
+.checkout_window #checkout_center .active span{
+    font-weight: bold;
+}
+
+.checkout_window #checkout_left .checkout_hero_wrap{
+    width: 500px;
+    max-height: 350px;
+    overflow: hidden;
+    background-color: #f1f1f1;
+}
+
+.checkout_window #checkout_left .checkout_hero{
+    max-width: 500px;
+    margin: 0 auto;
+    max-height: 350px;
+    display: block;
+}
+
+.checkout_window #checkout_left  {
+    float:left;
+    padding:40px;
+}
+
+.checkout_window #checkout_center{
+    width:300px;
+    padding-right:30px;
+}
+
+.checkout_window #checkout_center #photo_desc{
+    margin-top:10px;
+}
+
+.checkout_window #checkout_center h3, .checkout_window #checkout_right h3{
+    font-family: 'open_sans_semiboldregular', sans-serif;
+    font-size: 14px;
+    font-weight: normal;
+    color:#555;
+}
+
+.checkout_window #checkout_center form{
+    font-family: Arial, Helvetica, sans-serif;
+    margin-top:20px;
+}
+
+.checkout_window #checkout_center form strong{
+    font-weight: bold;
+}
+
+.checkout_window #checkout_center .form_input{
+    margin-top:5px;
+}
+
+.details_second_line{
+    text-indent: 16px;
+    display: block;
+}
+
+.checkout_window #checkout_right{
+
+}
+
+.checkout_window #checkout_right .cr_item, .summary_wrap_right .cr_item{
+    border-top: solid 1px #ccc;
+    padding-top:8px;
+    margin-top:8px;
+}
+
+.checkout_window #checkout_right .download_link, .summary_wrap_right .download_link{
+    color: #0079b8;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.checkout_window #checkout_right .download_link:hover, .summary_wrap_right .download_link:hover{
+    text-decoration: underline;
+}
+
+/*
+New styles
+*/
+
+#cart_photo_id {
+    text-transform: uppercase;
+    font-size: 14px;
+}
+
+#photo_description_down{
+    font-family: "open_sans_lightregular", sans-serif;
+    font-size: 14px;
+    width:500px;
+    margin-top:15px;
+}
+
+.licensing_terms_link{
+    font-family: "open_sansregular";
+    font-size: 14px;
+    color: #127fa5;
+    margin-top:5px;
+    display: block;
+}
+
+.add_to_cart_success,
+#checkout_center .add_to_cart_btn_holder,
+#checkout_center .add_to_cart_links {
+	text-align: center;
+}
+
+#checkout_center .add_to_cart_success,
+#checkout_center .add_to_cart_links,
+#checkout_center .add_to_cart_btn_holder {
+	margin-top: 18px;
+}
+
+.add_to_cart_success p {
+	background-color: #eeeeee;
+	line-height: 38px;
+	height: 38px;
+	margin: auto;
+	border-radius: 4px;
+	font-size: 16px;
+}
+
+.add_to_cart_success p span {
+	background: url("/images/v2/added_cart_success.png") 0 0 no-repeat transparent;
+	width: 14px;
+	height: 14px;
+	display: inline-block;
+	position: relative;
+	left: -5px;
+}
+
+#checkout_center .add_to_cart_success p{
+	width: 250px;
+    font-family: "open_sansregular", sans-serif;
+}
+
+.asset-add-to-cart .add_to_cart_success p {
+	width: 100%;
+	box-sizing: border-box;
+    background-color: #333333;
+	font-family: "Roboto_Regular", sans-serif;
+	top: 1px;
+}
+
+.add_to_cart_links .licensing_terms_link{
+    margin:10px 0;
+    border-bottom: dotted 1px #999;
+    padding-bottom: 10px;
+}
+
+.cart_modal_backdrop {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1040;
+    background-color: #000000;
+    opacity: 0.8;
+}

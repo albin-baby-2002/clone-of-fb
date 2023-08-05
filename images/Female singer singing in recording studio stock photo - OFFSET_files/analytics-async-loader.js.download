@@ -1,0 +1,183 @@
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var stubFactoryCreator = require('./stub-factory.js');
+var loaderCreator = require('./loader.js');
+/**
+ * Immediately creates an object 'analytics' in the global scope, with all
+ * analytics-js methods stubbed out. An additional method 'analytics.load()' is
+ * exposed which loads and initializes the analytics-js library asynchronously.
+ */
+module.exports = function analyticsAsyncLoader(window, document) {
+
+  var queue = [];
+  var stubFactory = stubFactoryCreator(window, queue);
+  var loader = loaderCreator(window, document, queue);
+  var i;
+  var methods = [
+    'identify',
+    'track',
+    'trackLink',
+    'trackForm',
+    'trackClick',
+    'trackSubmit',
+    'page',
+    'pageview',
+    'ab',
+    'alias',
+    'ready',
+    'group',
+    'on',
+    'once',
+    'off'
+  ];
+
+  // Stub out a global analytics object that stores calls to itself until the real one is loaded
+  window.analytics = window.analytics || []; // eslint-disable-line no-param-reassign
+  for (i = 0; i < methods.length; i++) {
+    window.analytics[methods[i]] = stubFactory.generateStub(methods[i]); // eslint-disable-line no-param-reassign
+  }
+
+  // Expose the loader on the global analytics object
+  window.analytics.load = loader.loadAnalytics; // eslint-disable-line no-param-reassign
+};
+
+},{"./loader.js":4,"./stub-factory.js":5}],2:[function(require,module,exports){
+require('./analytics-async-loader-entry.js')(window, document);
+
+},{"./analytics-async-loader-entry.js":1}],3:[function(require,module,exports){
+module.exports = function injectorExport(win, doc, queue, options) {
+  /* eslint-disable no-use-before-define */
+  var injector = {
+    addAnalyticsAndIntegrationScripts: addAnalyticsAndIntegrationScripts,
+    injectScript: injectScript,
+    onAnalyticsScriptLoaded: onAnalyticsScriptLoaded
+  };
+  return injector;
+  /* eslint-enable no-use-before-define */
+
+  /**
+   * Injects an async script tag
+   *
+   * @param   {string} src URL for the script tag
+   * @param   {string} id ID attribute for the script tag
+   * @param   {function} callback Function to be called onload
+   * @returns {void}
+   */
+  function injectScript(src, id, callback) {
+    var firstScript;
+    var script;
+
+    if (doc.getElementById(id)) {
+      return;
+    }
+
+    firstScript = doc.getElementsByTagName('script')[0];
+    script = doc.createElement('script');
+    script.async = true;
+    script.id = id;
+    script.type = 'text/javascript';
+    script.src = src;
+    if (callback) {
+      script.addEventListener('load', callback, false);
+    }
+    firstScript.parentNode.insertBefore(script, firstScript);
+  }
+
+  /**
+   * Initializes analytics-js, and replays calls to the stubbed analytics object
+   *
+   * @returns {void}
+   */
+  function onAnalyticsScriptLoaded() {
+    var item;
+    var method;
+
+    win.analytics.initialize(options.integrations, options.options);
+
+    // Replay any calls that were made on the stubbed analytics object
+    while (queue.length > 0) {
+      item = queue.shift();
+      method = item.shift();
+      if (win.analytics[method]) {
+        win.analytics[method].apply(win.analytics, item);
+      }
+    }
+  }
+
+  /**
+   * Loads and initializes analytics-js library
+   *
+   * @param   {object} opts Options object
+   * @returns {void}
+   */
+  function addAnalyticsAndIntegrationScripts() {
+    // Inject the analytics-js script tag, which will replace the global analytics object
+    injector.injectScript(options.url, 'script-analytics-js', onAnalyticsScriptLoaded);
+
+    // Inject any integration script that is needed
+    Object.keys(options.integrations).forEach(function addIntegrationScripts(key) {
+      var id = 'script-analytics-js-integration-' + key;
+      if (options.integrations[key].integrationUrl) {
+        injector.injectScript(options.integrations[key].integrationUrl, id, null);
+      }
+    });
+  }
+};
+
+},{}],4:[function(require,module,exports){
+var injectorCreator = require('./injector.js');
+
+module.exports = function loader(win, doc, queue) {
+  var injector;
+  var defaultAnalyticsUrl = '/assets/js/lib/analytics.js';
+
+  /* eslint-disable no-use-before-define */
+  return {
+    loadAnalytics: loadAnalytics
+  };
+  /* eslint-enable no-use-before-define */
+
+  /**
+   * Loads and initializes analytics-js library
+   *
+   * @param   {object} options Options object
+   * @param   {string} options.url URL for analytics-js script
+   * @param   {object} options.integrations Config passed to analytics.initialize()
+   * @param   {object} options.options Config passed to analytics.initialize()
+   * @returns {void}
+   */
+  function loadAnalytics(options) {
+    var opts = options || {};
+    opts.url = opts.url || defaultAnalyticsUrl;
+    opts.integrations = opts.integrations || {};
+    opts.options = opts.options || {};
+
+    injector = injectorCreator(win, doc, queue, opts);
+    injector.addAnalyticsAndIntegrationScripts();
+  }
+};
+
+},{"./injector.js":3}],5:[function(require,module,exports){
+module.exports = function stubFactory(win, queue) {
+  /* eslint-disable no-use-before-define */
+  return {
+    generateStub: generateStub
+  };
+  /* eslint-enable no-use-before-define */
+
+  /**
+   * Creates a stub function that just stores its arguments and returns the global analytics object
+   *
+   * @param   {string} method Name of method to stub
+   * @returns {function} Stubbed analytics function
+   */
+  function generateStub(method) {
+    return function stubOut() {
+      var args = Array.prototype.slice.call(arguments);
+      args.unshift(method);
+      queue.push(args);
+      return win.analytics;
+    };
+  }
+};
+
+},{}]},{},[2]);
